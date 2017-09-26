@@ -12,6 +12,7 @@ except:
            '''
     sys.exit()
 
+global pointsToConvert
 
 def drawPoint(dot1):
     glBegin(GL_POINTS)
@@ -28,7 +29,7 @@ def convertCartesianToCylindrical(dots):
     return cylindricalDots
 
 
-def Bresenham4Line(x0, y0, x1, y1):
+def Bresenham8Line(x0, y0, x1, y1):
     # change of coordinates
     dx = (x1 - x0) if (x1 > x0) else (x0 - x1)
     dy = (y1 - y0) if (y1 > y0) else (y0 - y1)
@@ -69,9 +70,31 @@ def Bresenham4Line(x0, y0, x1, y1):
     return dots
 
 
+def Bresenham4Line(x0, y0, x1, y1):
+    dx = x1 - x0
+    dy = y1 - y0
+    d = 0
+    d1 = dy * 2
+    d2 = -(dx * 2)
+    dots = [[x0, y0, 0.0]]
+    x = x0
+    y = y0
+
+    for i in range(1, int(dx + dy)):
+        if d > 0:
+            d += d2
+            y = y + 1
+        else:
+            d += d1
+            x = x + 1
+        dots.append([x, y, 0.0])
+
+    return dots
+
+
 def init():
     # clear screen red, green, blue, alpha
-    glClearColor(0.0, 0.0, 0.0, 0.0)
+    glClearColor(1.0, 1.0, 1.0, 0.0)
     # select flat or smooth shading
     glShadeModel(GL_FLAT)
 
@@ -80,17 +103,14 @@ def display():
     # clear buffers to preset values
     glClear(GL_COLOR_BUFFER_BIT)  # Indicates the buffers currently enabled for color writing.
     # set color
-    glColor3f(1.0, 1.0, 1.0)
+    glColor3f(0.0, 0.0, 0.0)
     # get dots for line
-    dots = Bresenham4Line(100.0, 100.0, 300.0, 300.0)
+    global pointsToConvert
+    pointsToConvert = Bresenham4Line(100.0, 100.0, 300.0, 300.0)
 
     # draw line
-    for dot in dots:
+    for dot in pointsToConvert:
         drawPoint(dot)
-
-    # convert the cartesian coordinates (x,y,z), the cylindrical coordinates (r,o,z)
-    cylindricalDots = convertCartesianToCylindrical(dots)
-    print(cylindricalDots)
 
     # force execution of GL commands in finite time
     glFlush()
@@ -105,6 +125,10 @@ def reshape(w, h):
 
 
 def keyboard(key, x, y):
+    if key == chr(99).encode():
+        print(pointsToConvert)
+        print(convertCartesianToCylindrical(pointsToConvert))
+
     if key == chr(27).encode():
         sys.exit(0)
 
