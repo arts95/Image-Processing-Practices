@@ -1,9 +1,10 @@
-# from tkinter import Tk
-# from tkinter.filedialog import askopenfilename
-import dicom
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
 import sys
 import dicom
+import uuid
 import numpy as np
+from dicom.tag import Tag
 
 try:
     from OpenGL.GLUT import *
@@ -13,45 +14,86 @@ try:
 except:
     print(''' ERROR: PyOpenGL not installed properly. ''')
     sys.exit()
-global width, height
 
+class Text():
+    def __init__(self, label, value):
+        self.label = label
+        self.value = value
 
-def LoadTextures():
-    global width, height
+    def __str__(self):
+        return str(self.label) + ": " + str(self.value) + ";"
 
-    # Tk().withdraw()  # we don't want a full GUI, so keep the root window from appearing
-    # filename = askopenfilename()  # show an "Open" dialog box and return the path to the selected file
-    # ds = dicom.read_file(filename)
-    # ds = dicom.read_file("DICOM_Image_for_Lab_2.dcm")
-    # m = 0.0120557
-    # b = 4.180
-
-    # data = []
-
-    # for row in ds.pixel_array:
-    #     newRow = []
-    #     for pixel in row:
-    #         newRow.append((m * pixel + b))
-    #     data.append(newRow)
-
-    image = dicom.read_file("DICOM_Image_for_Lab_2.dcm")
-    width = image['0028', '0011'].value
-    height = image['0028', '0010'].value
-    pixelsData = image.PixelData
-
-    image = np.fromstring(pixelsData, np.byte)
-
+def LoadTextures(pixels):
     # Create Texture
-    glBindTexture(GL_TEXTURE_2D, glGenTextures(1))  # 2d texture (x and y size)
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, image)
+    glBindTexture(GL_TEXTURE_2D, glGenTextures(1))
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, pixels)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
 
 
+def loadImage():
+    global width, height, image
+    # Tk().withdraw()  # we don't want a full GUI, so keep the root window from appearing
+    # filename = askopenfilename()  # show an "Open" dialog box and return the path to the selected file
+    # image = dicom.read_file(filename)
+    # if filename == '':
+    #     sys.exit()
+    image = dicom.read_file("DICOM_Image_for_Lab_2.dcm")
+    width = image['0028', '0011'].value
+    height = image['0028', '0010'].value
+    return image
+
+
+def prepareData(m, b):
+    pixels = []
+    for row in image.pixel_array:
+        newRow = []
+        for pixel in row:
+            if pixel > 175:
+                value = m * 175 + b
+            elif pixel < 10:
+                value = m * 10 - b
+            else:
+                value = m * pixel + b
+            newRow.append(float(value))
+        pixels.append(newRow)
+    return pixels
+
+
+def saveImage(m, b, minMax):
+    image['0008', '0008'].value = 'DERIVED'  # Image Type
+    image['0008', '103E'].value = 'Description'  # Series description
+    # image['0008', '103F'].value = ''  # Series description code sequence
+    image['0020', '000D'].value = uuid.uuid4().hex  # Series instance UID
+    image.add_new(Tag(['0028', '0106']), 'FL', minMax[0])  # Smallest Image Pixel Value
+    image.add_new(Tag(['0028', '0107']), 'FL', minMax[1])  # Largest Image Pixel Value
+    image['0028', '1052'].value = b  # Rescale intercept
+    image['0028', '1053'].value = m  # Rescale slope
+    # image.save_as("newfilename.dcm")
+
+
+def findMinMax(data):
+    arrayData = []
+    for row in data:
+        for pixel in row:
+            arrayData.append(pixel)
+
+    return [
+        min(arrayData),
+        max(arrayData)
+    ]
+
+
 def init():
-    LoadTextures()
-    # clear screen red, green, blue, alpha
+    global texts
+    m = 0.0120557
+    b = 4.180
+    pixels = prepareData(m, b)
+    LoadTextures(pixels)
+    minMax = findMinMax(pixels)
+    saveImage(m, b, minMax)
+    texts = [Text('Smallest Image Pixel Value', minMax[0]), Text('Largest Image Pixel Value', minMax[1]),
+             Text('Rescale intercept', b), Text('Rescale slope', m), Text('Value representation', 'FLOAT')]
     glEnable(GL_TEXTURE_2D)
     glClearColor(0.0, 0.0, 0.0, 0.0)  # This Will Clear The Background Color To Black
 
@@ -91,13 +133,27 @@ def reshape(w, h):
 def keyboard(key, x, y):
     if key == chr(27).encode():
         sys.exit(0)
+    if key == b'\r':
+        addPixel = 0
+        for text in texts:
+            draw_text(str(text), 10, height + 80 - addPixel)
+            addPixel += 15
+        glFlush()
 
+def draw_text(text, x, y):
+    glDisable(GL_TEXTURE_2D)
+    glColor3f(255, 255, 255)
+    glRasterPos2f(x, y)
+    for character in text:
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, ord(character))
+    glEnable(GL_TEXTURE_2D)
 
 # initialize the GLUT library.
 glutInit(sys.argv)
 # sets the initial display mode.
 glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB)  # Bit mask to select a single buffered window, and RGBA mode window.
-glutInitWindowSize(270, 270)
+loadImage()
+glutInitWindowSize(width, height + 100)
 glutInitWindowPosition(100, 100)
 glutCreateWindow('Line')
 init()
