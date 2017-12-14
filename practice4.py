@@ -40,7 +40,6 @@ def loadImage():
     image = dicom.read_file(filename)
     if filename == '':
         sys.exit()
-    image = dicom.read_file("DICOM_Image_for_Lab_2.dcm")
     width = image['0028', '0011'].value
     height = image['0028', '0010'].value
     return image
