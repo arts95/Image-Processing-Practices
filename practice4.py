@@ -37,9 +37,9 @@ def loadImage():
     global width, height, image
     Tk().withdraw()  # we don't want a full GUI, so keep the root window from appearing
     filename = askopenfilename()  # show an "Open" dialog box and return the path to the selected file
-    image = dicom.read_file(filename)
     if filename == '':
         sys.exit()
+    image = dicom.read_file(filename)
     width = image['0028', '0011'].value
     height = image['0028', '0010'].value
     return image
