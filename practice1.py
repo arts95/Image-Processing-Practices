@@ -17,6 +17,9 @@ class ImageHelper:
     def __init__(self, image):
         self.image = image
 
+    def get_bits_allocated(self):
+        return self.image['0028', '0100'].value
+
     def get_width(self):
         return self.image['0028', '0011'].value
 
@@ -37,13 +40,23 @@ class ImageHelper:
             'max': max(array_data)
         }
 
+    def get_bit_map(self):
+        middle = self.get_width() / 2
+        bit_map = [[0 for x in range(self.get_width())] for y in range(self.get_height())]
+        for i, row in enumerate(bit_map):
+            for j, pixel in enumerate(row):
+                if j > middle:
+                    bit_map[i][j] = 255
+
+        return bit_map
+
     def get_image_with_bit_map(self):
         pixels = []
-        middle = self.get_width() / 2
-        for row in self.get_pixels():
+        bit_map = self.get_bit_map()
+        for i, row in enumerate(self.get_pixels()):
             new_row = []
-            for index, pixel in enumerate(row):
-                new_row.append(int(index > middle) and pixel)
+            for j, pixel in enumerate(row):
+                new_row.append(bit_map[i][j] & pixel)
             pixels.append(new_row)
 
         return pixels
@@ -88,16 +101,15 @@ def loadImage():
     if filename == '':
         sys.exit()
     imageHelper = ImageHelper(image)
+    if imageHelper.get_bits_allocated() != 8:
+        sys.exit()
     return imageHelper
 
 
 def init():
-    global texts
     load_textures(imageHelper)
-
     glEnable(GL_TEXTURE_2D)
     glClearColor(0.0, 0.0, 0.0, 0.0)  # This Will Clear The Background Color To Black
-
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()  # Reset The Projection Matrix
     glMatrixMode(GL_MODELVIEW)
