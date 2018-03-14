@@ -25,7 +25,7 @@ class ImageHelper:
         return self.loaded_pixel
 
     def get_brightness_of_pixel(self, x, y):
-            return self.get_loaded_pixel()[x][y]
+        return self.get_loaded_pixel()[x][y]
 
     def get_width(self):
         return self.image['0028', '0011'].value
@@ -49,10 +49,11 @@ class ImageHelper:
 
     def get_inverse(self):
         pixels = []
+        max_pixel = self.find_min_max()['max']
         for row in self.get_pixels():
             new_row = []
             for value in row:
-                new_row.append(255 - value)
+                new_row.append(max_pixel - value)
 
             pixels.append(new_row)
         self.set_loaded_pixel(pixels)
@@ -60,11 +61,11 @@ class ImageHelper:
 
     def get_window_level(self):
         pixels = []
-        level = 20
-        window = 1000
         min_max = self.find_min_max()
         min_pixel = min_max['min']
         max_pixel = min_max['max'] / 2
+        level = max_pixel / 2
+        window = max_pixel
         for row in self.get_pixels():
             new_row = []
             for value in row:
@@ -74,7 +75,10 @@ class ImageHelper:
                     new_value = max_pixel
                 else:
                     new_value = min_pixel + (value - level) * (max_pixel - min_pixel) / window
-                new_row.append(int(new_value))
+                if new_value < 0:
+                    new_row.append(0)
+                else:
+                    new_row.append(int(new_value))
 
             pixels.append(new_row)
         self.set_loaded_pixel(pixels)
